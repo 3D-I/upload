@@ -93,6 +93,9 @@
 	margin-right: 0;
 	margin-left: -35px;
 }
+.rtl #upload_refresh_notice .upload_refresh_notice_close {
+	float: left;
+}
 .rtl .select_all_code {
 	right: auto;
 	left: 15px;
@@ -132,7 +135,7 @@
 	margin: 0;
 }
 .rtl .upload_ext_list .upload_ext_list_content a.upload_get_details_link {
-	padding: 0px 100px 0px 0;
+	padding: 0 100px 0 0;
 }
 .rtl .upload_ext_list .upload_ext_list_content a.upload_get_details_link span.upload_ext_list_name {
 	margin: 5px 0 5px 5px;
@@ -152,12 +155,8 @@
 .rtl #filecontent_wrapper {
 	float: left;
 }
-.rtl .php-file-tree {
-	margin-left: 0px;
-	margin-right: 30px;
-}
 .rtl .php-file-tree ul {
-	padding: 0 45px 0 0;
+	padding: 0 15px 0 0;
 }
 .rtl .php-file-tree li {
 	direction: rtl;
@@ -166,19 +165,15 @@
 	padding: 0 30px 0 0;
 	margin: 0 -30px 0 0;
 }
-.rtl .php-file-tree .pft-directory {
-	margin-left: 0;
-	margin-right: -22px; /* Fix a bug in Firefox. */
-}
 .rtl .requirements_bubble {
-	margin-left: 0px;
+	margin-left: 0;
 	margin-right: 20px;
 }
 .rtl .requirements_value {
 	direction: ltr;
 }
 .rtl .description_bubble {
-	margin-right: 0px;
+	margin-right: 0;
 	margin-left: 20px;
 }
 .rtl .description_value {
@@ -188,7 +183,7 @@
 }
 .rtl .requirements_value:before, .description_value_ok:before,
 .rtl .requirements_value_not_met:before, .description_value_old:before {
-	margin-right: 0px;
+	margin-right: 0;
 	margin-left: 5px;
 }
 .rtl h1.ExtensionName {
@@ -279,10 +274,12 @@
 	margin-left: 0;
 	margin-right: 10px;
 }
-.rtl #ext_details_content .extension_get_update_link {
+.rtl #ext_details_content .extension_get_update_link,
+.rtl #upload_refresh_notice .page_refresh_link {
 	padding: 6px 0 6px 15px;
 }
-.rtl #ext_details_content .extension_get_update_link i {
+.rtl #ext_details_content .extension_get_update_link i,
+.rtl #upload_refresh_notice .page_refresh_link i {
 	margin: 0 15px 0 5px;
 }
 .rtl .extension_latest_version_wrapper {

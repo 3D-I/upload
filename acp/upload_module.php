@@ -28,7 +28,7 @@ class upload_module
 
 	function main($id, $mode)
 	{
-		global $db, $config, $user, $cache, $template, $request, $phpbb_root_path, $phpEx, $phpbb_log, $phpbb_extension_manager, $phpbb_container;
+		global $config, $user, $cache, $template, $request, $phpbb_root_path, $phpEx, $phpbb_log, $phpbb_extension_manager, $phpbb_container;
 
 		// General settings for displaying the page.
 		$this->page_title = $user->lang['ACP_UPLOAD_EXT_TITLE'];
@@ -54,7 +54,7 @@ class upload_module
 		$template->assign_var('U_ACTION', $this->u_action);
 
 		// The links from phpbb.com does not contain .zip suffix. We need to handle this case.
-		$phpbb_link_template = '#^(https://)www.phpbb.com/customise/db/download/([0-9]*?)(\?sid\=[a-zA-Z0-9]*?)?$#i';
+		$phpbb_link_template = '#^(https://)www.phpbb.com/customise/db/download/([0-9]*?)(/composer|/manual)?/?(\?sid\=[a-zA-Z0-9]*?)?$#i';
 
 		// Work with objects class instead of $this.
 		objects::$cache = &$cache;
@@ -82,7 +82,10 @@ class upload_module
 		objects::$is_ajax = false;
 		if ($request->is_ajax() && !empty($ajax_action))
 		{
-			$template->assign_var('IS_AJAX', true);
+			$template->assign_vars(array(
+				'HAS_AJAX' => true,
+				'IS_AJAX'  => true,
+			));
 			objects::$is_ajax = true;
 			switch ($ajax_action)
 			{
@@ -106,6 +109,7 @@ class upload_module
 				case 'disable':
 				case 'purge':
 				case 'restore_languages':
+				case 'faq':
 				case 'details':
 					$this->tpl_name = 'acp_upload_details';
 				break;
@@ -132,10 +136,18 @@ class upload_module
 		{
 			$template->assign_vars(array(
 				'S_LOAD_ACTION'   => $action,
-				'U_MAIN_PAGE_URL' => build_url(array('action')),
+				'U_MAIN_PAGE_URL' => build_url(array('action', 'ajax', 'ext_name', 'ext_show')),
 			));
+
+			if ($request->variable('ajax', 0) === 1)
+			{
+				// Only needed to correctly load the template.
+				$template->assign_var('HAS_AJAX', true);
+			}
 		}
 		// Detect whether this is an Ajax request - END
+
+		$original_action = $action;
 
 		switch ($action)
 		{
@@ -143,6 +155,10 @@ class upload_module
 				$ext_name = $request->variable('ext_name', objects::$upload_ext_name);
 				$ext_show = $request->variable('ext_show', '');
 				load::details($ext_name, $ext_show);
+			break;
+
+			case 'faq':
+				load::details(objects::$upload_ext_name, 'faq');
 			break;
 
 			case 'enable':
@@ -211,8 +227,10 @@ class upload_module
 				}
 				$ext_name = $request->variable('ext_name', '');
 				$lang_name = $request->variable('ext_lang_name', '');
-				$this->upload_lang($lang_action, $ext_name, $lang_name);
-				load::details($ext_name, 'languages');
+				if ($this->upload_lang($lang_action, $ext_name, $lang_name))
+				{
+					load::details($ext_name, 'languages');
+				}
 			break;
 
 			case 'upload':
@@ -230,13 +248,11 @@ class upload_module
 				}
 			// no break
 
-			case 'upload_remote':
 			case 'force_update':
 				$this->upload_ext($action);
 				$template->assign_vars(array(
-					'U_UPLOAD'        => $this->main_link . '&amp;action=upload',
-					'U_UPLOAD_REMOTE' => $this->main_link . '&amp;action=upload_remote',
-					'S_FORM_ENCTYPE'  => ' enctype="multipart/form-data"',
+					'U_UPLOAD'       => $this->main_link . '&amp;action=upload',
+					'S_FORM_ENCTYPE' => ' enctype="multipart/form-data"',
 				));
 			break;
 
@@ -516,7 +532,7 @@ class upload_module
 										'MESSAGE_TEXT'  => $result_text,
 										'REFRESH_DATA'  => array(
 											'time' => 3,
-											'url'  => redirect(objects::$u_action . '&amp;action=details&amp;ext_show=languages&amp;result_type=ajax_refresh', true)
+											'url'  => redirect(objects::$u_action . '&amp;action=details&amp;ext_show=languages&amp;ajax=1', true)
 										)
 									));
 								}
@@ -562,22 +578,21 @@ class upload_module
 			case 'main':
 			default:
 				$template->assign_vars(array(
-					'U_UPLOAD'        => $this->main_link . '&amp;action=upload',
-					'U_UPLOAD_REMOTE' => $this->main_link . '&amp;action=upload_remote',
-					'S_FORM_ENCTYPE'  => ' enctype="multipart/form-data"',
+					'U_UPLOAD'       => $this->main_link . '&amp;action=upload',
+					'S_FORM_ENCTYPE' => ' enctype="multipart/form-data"',
 				));
 			break;
 		}
 
 		if ($this->catch_errors() && objects::$is_ajax)
 		{
-			$this->output_response('error', $action);
+			$this->output_response('error', $original_action);
 		}
 		else
 		{
 			if (objects::$is_ajax)
 			{
-				$this->output_response('success', $action);
+				$this->output_response('success', $original_action);
 			}
 		}
 	}
@@ -642,9 +657,12 @@ class upload_module
 			}
 			else
 			{
-				objects::$template->assign_var("S_EXT_ERROR", true);
+				objects::$template->assign_vars(array(
+					'S_EXT_ERROR'   => true,
+					'S_LOAD_ACTION' => 'error',
+				));
 			}
-			objects::$template->assign_var("S_ACTION_BACK", objects::$u_action);
+			objects::$template->assign_var('S_ACTION_BACK', objects::$u_action);
 			return true;
 		}
 		return false;
@@ -864,7 +882,7 @@ class upload_module
 			}
 			// We need to use the user ID and the time to escape from problems with simultaneous uploads.
 			// We suppose that one user can upload only one extension per session.
-			$ext_tmp = objects::$upload_ext_name . '/tmp/' . (int)$user->data['user_id'];
+			$ext_tmp = objects::$upload_ext_name . '/tmp/' . (int) $user->data['user_id'];
 			// Ensure that we don't have any previous files in the working directory.
 			if (is_dir($phpbb_root_path . 'ext/' . $ext_tmp))
 			{
@@ -1025,7 +1043,7 @@ class upload_module
 		{
 			// All checks were done previously. Now we only need to restore the variables.
 			// We try to restore the data of the current upload.
-			$ext_tmp = objects::$upload_ext_name . '/tmp/' . (int)$user->data['user_id'];
+			$ext_tmp = objects::$upload_ext_name . '/tmp/' . (int) $user->data['user_id'];
 			if (!is_dir($phpbb_root_path . 'ext/' . $ext_tmp) || !($composery = files::getComposer($phpbb_root_path . 'ext/' . $ext_tmp)) || !($string = @file_get_contents($composery)))
 			{
 				files::catch_errors($user->lang['ACP_UPLOAD_EXT_WRONG_RESTORE']);
@@ -1173,7 +1191,7 @@ class upload_module
 		}
 		// We need to use the user ID and the time to escape from problems with simultaneous uploads.
 		// We suppose that one user can upload only one extension per session.
-		$ext_tmp = $phpbb_root_path . 'ext/' . objects::$upload_ext_name . '/tmp/' . (int)$user->data['user_id'];
+		$ext_tmp = $phpbb_root_path . 'ext/' . objects::$upload_ext_name . '/tmp/' . (int) $user->data['user_id'];
 		// Ensure that we don't have any previous files in the working directory.
 		if (is_dir($ext_tmp))
 		{

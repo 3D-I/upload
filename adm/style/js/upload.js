@@ -29,7 +29,7 @@
 
 	$(".upload_faq_link").click(function(event) {
 		event.preventDefault();
-		load_page("details", "boardtools/upload&ext_show=faq");
+		load_page("faq");
 	});
 
 	$("#upload_extensions_title").click(function(event) {
@@ -151,9 +151,9 @@
 
 	function show_error_box(e, text, ee) {
 		var error_status = e.status || e;
+		prepare_error_wrapper();
 		if (text == "timeout" || ee == "timeout") {
 			$("#upload_loading_timeout").css("display", "inline-block");
-			$("#upload_loading_error_wrapper").slideDown(700);
 		} else {
 			if (typeof ee !== "undefined" && ee != "") {
 				var $errorbox = $("#upload_loading_error_status");
@@ -171,10 +171,30 @@
 			} else {
 				$("#upload_loading_error").css("display", "inline-block");
 			}
-			$("#upload_loading_error_wrapper").slideDown(700);
 		}
+		$("#upload_loading_error_wrapper").slideDown(700);
 		loading_errors = true;
 	}
+
+	function show_refresh_notice() {
+		$("#upload_refresh_notice_wrapper").show();
+		$("#upload_refresh_notice").slideDown(500, function() {
+			$("[data-hasqtip]").each(function() {
+				$(this).qtip('api').reposition();
+			});
+		});
+	}
+
+	$("#upload_refresh_notice_wrapper").prependTo("body");
+	$(".page_refresh_link").click(function(e) {
+		e.preventDefault();
+		window.location.reload();
+	});
+	$(".upload_refresh_notice_close").click(function() {
+		$("#upload_refresh_notice").slideUp(500, function() {
+			$("#upload_refresh_notice_wrapper").hide();
+		});
+	});
 
 	function enable_result_success(element, attr_text) {
 		if (element.parent(".upload_ext_list_content").length > 0) {
@@ -254,7 +274,8 @@
 
 	function get_enable_result(result, element) {
 		element.removeClass("locked_toggle");
-		var $data_wrapper = (element.parent(".upload_ext_list_content").length > 0) ? element.siblings(".upload_ext_list_update_error_wrapper") : element.parent(); // Detect the list/details page.
+		var isListPage = element.parent(".upload_ext_list_content").length > 0,
+			$data_wrapper = (isListPage) ? element.siblings(".upload_ext_list_update_error_wrapper") : element.parent(); // Detect the list/details page.
 		if (typeof result.status !== "undefined") {
 			switch (result.status) {
 				case 'purged':
@@ -279,7 +300,7 @@
 					} else {
 						var error_status = '';
 						if (typeof result.message !== "undefined" && result.message != "") {
-							var status_divider = (element.parent(".upload_ext_list_content").length > 0) ? ' ' : '<br />';
+							var status_divider = (isListPage) ? ' ' : '<br />';
 							error_status = status_divider + escape_html(result.code + " - " + result.message);
 						}
 						enable_result_error(element, $data_wrapper.attr("data-ext-update-error") + error_status);
@@ -287,9 +308,7 @@
 					break;
 			}
 			if (result.refresh) {
-				setTimeout(function() {
-					window.location.href = window.location.href + '&result_type=ajax_refresh';
-				}, 1000);
+				show_refresh_notice();
 			}
 		} else {
 			enable_result_error(element, $data_wrapper.attr("data-ext-update-error"));
@@ -387,7 +406,6 @@
 						return "<div id='ext_purge_text'><i class=\"fa fa-spinner fa-3x fa-spin loading_spinner\"></i></div><div id='ext_purge_confirm'><span class='ext_update_ok'></span><span class='ext_update_cancel'></span></div>";
 					},
 					title: function(event, api) {
-						//return $(this).attr("title");
 						return $("#upload_loading_text").html();
 					}
 				},
@@ -581,6 +599,21 @@
 				show_modal_box(error);
 			}).show();
 		}
+		upload_ext.elem.main.one("loading", function() {
+			$(".upload_ext_error_show").hide();
+		});
+	}
+
+	function prepare_error_wrapper() {
+		$("#upload_loading_error_wrapper").finish();
+		$("#upload_loading_error, #upload_loading_timeout, #upload_loading_error_status").css("display", "none");
+	}
+
+	function close_error_wrapper() {
+		if (loading_errors) {
+			$("#upload_loading_error_wrapper").slideUp(700);
+			loading_errors = false;
+		}
 	}
 
 	function set_ext_requirement($extRow, $requirementRow, $requireType) {
@@ -669,9 +702,7 @@
 					}, 3000);
 				}
 				else {
-					$("#upload_loading_error").css("display", "inline-block");
-					$("#upload_loading_error_wrapper").slideDown(700);
-					loading_errors = true;
+					show_error_box();
 				}
 			},
 			cache: false
@@ -680,7 +711,6 @@
 
 	function get_force_unstable_confirm(result, element) {
 		if (typeof result.S_CONFIRM_ACTION !== "undefined" && result.YES_VALUE) {
-			//element.qtip('api').set('content.title', result.MESSAGE_TITLE);
 			$("#ext_force_unstable_confirm").children(".ext_update_ok").html(result.YES_VALUE).siblings(".ext_update_cancel").html(result.NO_VALUE).parent().show();
 			$("#ext_force_unstable_text").html(result.MESSAGE_TEXT);
 			element.qtip('api').reposition();
@@ -862,6 +892,10 @@
 			event.preventDefault();
 			display_ext_description($(this));
 		}).attr("title", $("#upload_valid_ext_description").attr("data-show-description"));
+
+		$(".upload_valid_ext_row a").click(function(event) {
+			event.stopPropagation();
+		});
 	}
 
 	function load_list_page() {
@@ -1143,7 +1177,7 @@
 	function load_zip_packages_page() {
 		$(".unpack_zip").click(function(event) {
 			event.preventDefault();
-			load_page("local_upload", $(this).attr("href"));
+			load_page("local_upload", $(this).attr("data-upload-link"));
 		});
 		$("#upload_pagination li a").click(function(event) {
 			event.preventDefault();
@@ -1165,9 +1199,7 @@
 			} else {
 				// Show result error.
 				$().upload_loading_end();
-				$("#upload_loading_error").css("display", "inline-block");
-				$("#upload_loading_error_wrapper").slideDown(700);
-				loading_errors = true;
+				show_error_box();
 				// Blank page is an error, but without text.
 				if (res.trim() !== '') {
 					show_error_modal_box(res);
@@ -1198,14 +1230,10 @@
 		} else {
 			$temp_container.empty();
 		}
-	}
 
-	function close_error_wrapper() {
-		if (loading_errors) {
-			$("#upload_loading_error_wrapper").slideUp(700, function() {
-				$("#upload_loading_error, #upload_loading_timeout, #upload_loading_error_status").css("display", "none");
-			});
-			loading_errors = false;
+		// Display debug errors in the modal box.
+		if (res.output) {
+			show_error_modal_box(res.output);
 		}
 	}
 
@@ -1231,10 +1259,16 @@
 			parse_response($this, s);
 			parse_document(upload_ext.elem.wrapper);
 			add_ajax();
-			bind_load_events(action);
+			if (s.status != "error") {
+				bind_load_events(action);
+				if ($.inArray(action, ["upload", "upload_language"]) > -1) {
+					action = s.action = "details";
+					id = $("h1.ExtensionName span").attr("data-ext-name");
+				}
+			}
 			if (upload_replace_history) {
 				upload_replace_history = false;
-				phpbb.history.replaceUrl(upload_ext.fn.main_attr("data-page-url") + "&action=" + s.action, document.title, {
+				phpbb.history.replaceUrl(upload_ext.fn.main_attr("data-page-url") + "&action=" + s.action + generate_get_request() + "&ajax=1", document.title, {
 					action: action,
 					id: id,
 					replaced: true
@@ -1242,7 +1276,7 @@
 			} else if (upload_stop_history) {
 				upload_stop_history = false;
 			} else {
-				phpbb.history.pushUrl(upload_ext.fn.main_attr("data-page-url") + "&action=" + s.action + generate_get_request(), document.title, {
+				phpbb.history.pushUrl(upload_ext.fn.main_attr("data-page-url") + "&action=" + s.action + generate_get_request() + "&ajax=1", document.title, {
 					action: action,
 					id: id
 				});
@@ -1256,7 +1290,7 @@
 
 		function generate_get_request() {
 			if ($.inArray(action, getExtension) > -1) {
-				return "&ext_name=" + id;
+				return "&ext_name=" + encodeURIComponent(id);
 			}
 			switch (action) {
 				case "local_upload":
@@ -1300,7 +1334,7 @@
 				success: function(s, x) {
 					if (action === "upload_language" && typeof s === "object" && typeof s.REFRESH !== "undefined") {
 						// Reload the page after installing current language package.
-						window.location.href = upload_ext.fn.main_attr("data-page-action") + "&action=details&ext_show=languages&result=language_uploaded&result_type=ajax_refresh&lang=" + s.LANGUAGE;
+						window.location.href = upload_ext.fn.main_attr("data-page-action") + "&action=details&ext_show=languages&result=language_uploaded&ajax=1&lang=" + s.LANGUAGE;
 					}
 					else if (check_response(s)) {
 						page_loaded($(this), s);
@@ -1418,6 +1452,7 @@
 			case "force_update":
 			case "restore_languages":
 				add_enable_tip();
+			case "faq":
 			case "details":
 				load_details_page();
 				break;
